@@ -3,11 +3,6 @@ import matplotlib.pyplot as plt
 from scipy.ndimage.filters import gaussian_filter
 import sys
 
-def dilate(image):
-    '''
-    TODO
-    '''
-    pass
 
 def find_match(template, mask, image):
     '''
@@ -49,10 +44,6 @@ def sum_square_error(template, image_chunk, mask):
                 total += (template[i,j] - image_chunk[i,j]) ** 2) * gaussian[i,j]
 
     return total
-
-
-def test_square_diff():
-    pass
 
 
 def gkern(kernlen=21, nsig=3):
@@ -141,13 +132,6 @@ if __name__ == '__main__':
 
     plt.imshow(mask)
     plt.show()
-
-
-
-def sum_square_diff(template, mask, image):
-    '''
-    TODO
-    '''
 
 
 # test for dilate
