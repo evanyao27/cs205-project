@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.ndimage.filters import gaussian_filter
 import sys
+import random
 
 
 def find_match(template, mask, image):
@@ -87,23 +88,23 @@ if __name__ == '__main__':
     Playing, Testing Code
     '''
 
-    test_image = np.zeros((11, 11))
-    test_template = np.zeros((5,5))
+    # test_image = np.zeros((11, 11))
+    # test_template = np.zeros((5,5))
 
-    test_image[0:11:2,0:11:2] = 1
-    test_image[1:11:2,1:11:2] = 1
+    # test_image[0:11:2,0:11:2] = 1
+    # test_image[1:11:2,1:11:2] = 1
 
-    test_template[0:5:2, :] = 1
-    test_template[:, 1:11:2] = 1
+    # test_template[0:5:2, :] = 1
+    # test_template[:, 1:11:2] = 1
 
-    plt.imshow(test_template, cmap='Greys', interpolation='none')
-    plt.show()
+    # plt.imshow(test_template, cmap='Greys', interpolation='none')
+    # plt.show()
 
-    plt.imshow(test_image, cmap = 'Greys', interpolation='none')
-    plt.show()
+    # plt.imshow(test_image, cmap = 'Greys', interpolation='none')
+    # plt.show()
 
-    if len(sys.argv) != 1:
-        sys.exit(0)
+    # if len(sys.argv) != 1:
+    #     sys.exit(0)
     '''
     Pre-processing: loading image, setting up template
     '''
@@ -129,6 +130,25 @@ if __name__ == '__main__':
     # pixels that have been filled in
     mask = np.zeros((h,w), dtype=float)
     mask[top:top + imheight, left:left + imwidth] = 1
+
+    pixels_to_fill = dilate(mask)
+
+    for x,y in pixels_to_fill:
+        ptop = x - (window_size / 2)
+        pleft = y - (window_size / 2)
+        pixelWindow = blank[ptop:ptop + window_size, pleft:pleft + window_size]
+        pixelMask = mask[ptop:ptop + window_size, pleft:pleft + window_size]
+        possibleFill = find_match(pixelWindow, pixelMask, image)
+        candidateFill = []
+        errors = []
+        for error, pixel in possibleFill:
+            errors.append(error)
+        minError = min(errors) * 1.1
+        for error, pixel in possibleFill:
+            if error < minError:
+                candidateFill.append(pixel)
+        blank[x,y] = random.sample(candidateFill)
+
 
     plt.imshow(mask)
     plt.show()
