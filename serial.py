@@ -120,7 +120,7 @@ if __name__ == '__main__':
     #plt.imshow(image, cmap='Greys', interpolation='none')
     #plt.show()
 
-    (h, w) = (300, 300)
+    (h, w) = (30, 30)
 
     window_size = 5
 
@@ -171,7 +171,11 @@ if __name__ == '__main__':
             blank[x,y] = random.sample(candidateFill, 1)[0]
             mask[x,y] = 1
 
+    plt.subplot(1,2,1)
     plt.imshow(blank, cmap='Greys', interpolation='none')
+
+    plt.subplot(1,2,2)
+    plt.imshow(image, cmap='Greys', interpolation='none')
     plt.show()
 
 
