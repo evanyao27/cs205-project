@@ -73,6 +73,7 @@ def dilate(image):
     for i in range(h):
         for j in range(w):
             if image[i,j] == 1:
+                # up/down/left/right
                 if i > 0:
                     dilated[i - 1, j] = 1
                 if i < h - 1:
@@ -81,6 +82,16 @@ def dilate(image):
                     dilated[i, j - 1] = 1
                 if j < w - 1:
                     dilated[i, j + 1] = 1
+
+                # corners
+                if i > 0 and j > 0:
+                    dilated[i - 1, j - 1] = 1
+                if i > 0 and j < w - 1:
+                    dilated[i - 1, j + 1] = 1
+                if i < h - 1 and j > 0:
+                    dilated[i + 1, j - 1] = 1
+                if i < h - 1 and j < w - 1:
+                    dilated[i + 1, j + 1] = 1
 
     for i in range(h):
         for j in range(w):
