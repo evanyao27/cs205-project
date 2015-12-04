@@ -1,39 +1,19 @@
-import numpy as np
-import matplotlib.pyplot as plt
-from scipy.ndimage.filters import gaussian_filter
 import sys
-import scipy.stats as st
-import random
-import time
+sys.path.append('../util')
 
+import set_compiler
+set_compiler.install()
 
-def find_match(template, mask_chunk, image, delta = 0.3):
-    '''
-    Finds a match of the template in the mask
-    '''
-    # checking that the size of the template and mask are the same
-    assert np.shape(template) == np.shape(mask_chunk)
+import pyximport
+pyximport.install()
 
-    # size variables
-    window_size = template.shape[0]
-    (h_i, w_i) = np.shape(image)
-
-    results = []
-
-    # looping through all possible windows
-    for h in range(h_i):
-        for w in range(w_i):
-            image_chunk = getWindow(image, (h,w), window_size)
-            error = sum_square_error(template, image_chunk, mask_chunk)
-            pix = image[h,w]
-            results.append((error, pix))
-            if error < delta:
-                break
-    return results
-
+import numpy as np
+from timer import Timer
+from functions import find_match
 
 def sum_square_error(template, image_chunk, mask):
     global gaussian
+
     '''
     Returns the sum of square error of a particular template on
     top of an image chunk. Uses the provided gaussian for weighting.
@@ -97,6 +77,7 @@ def dilate(image):
                 if i < h - 1 and j < w - 1:
                     dilated[i + 1, j + 1] = 1
 
+
     for i in range(h):
         for j in range(w):
             if image[i,j] == 0 and dilated[i,j] == 1:
@@ -106,11 +87,10 @@ def dilate(image):
 
 # assume window size is odd
 def getWindow(image, center, winSize):
-
-    (h, w) = np.shape(image)
+    (h, w, c) = np.shape(image)
     x,y = center
     side = (winSize / 2)
-    window = np.zeros((winSize,winSize), dtype=np.uint8)
+    window = np.zeros((winSize,winSize, c), dtype=np.uint8)
 
     # set boundaries of image window
     top = x - side
@@ -143,41 +123,40 @@ def getWindow(image, center, winSize):
 
     return window
 
+
 if __name__ == '__main__':
 
-    def rgb2gray(rgb):
-        r, g, b = rgb[:,:,0], rgb[:,:,1], rgb[:,:,2]
-        gray = 0.2989 * r + 0.5870 * g + 0.1140 * b
+    # test_image = np.zeros((11, 11))
+    # test_template = np.zeros((5,5))
 
-        return gray
-    try:
-        image = rgb2gray(plt.imread('images/rings.jpg'))
-    except:
-        image = plt.imread('images/rings.jpg')
-    image = image
+    # test_image[0:11:2,0:11:2] = 1
+    # test_image[1:11:2,1:11:2] = 1
 
-    test_image = np.zeros((9,9))
-    for (x,y) in [
-        (1,0),
-        (1,1),
-        (1,2),
-        (1,4),
-        (1,5),
-        (1,6),
-        (2,0),
-        (2,2),
-        (2,4),
-        (2,6),
-    ]:
-        test_image[x+1,y+1] = 255
-        test_image[x+5,y+1] = 255
+    # test_template[0:5:2, :] = 1
+    # test_template[:, 1:11:2] = 1
 
-    image = test_image
+    # plt.imshow(test_template, cmap='Greys', interpolation='none')
+    # plt.show()
 
+    # plt.imshow(test_image, cmap = 'Greys', interpolation='none')
+    # plt.show()
 
-    (h, w) = (41, 41)
+    # if len(sys.argv) != 1:
+    #     sys.exit(0)
 
-    window_size = 15
+    # image = plt.imread('images/sand_template.gif')
+
+    image = np.zeros((11, 11))
+    image[0:11:2, 0:11:2] = 1
+    image[1:11:2, 1:11:2] = 1
+
+    #image = plt.imread('images/sand_template.gif')[:,:,1]
+    #plt.imshow(image, cmap='Greys', interpolation='none')
+    #plt.show()
+
+    (h, w) = (30, 30)
+
+    window_size = 5
 
     (imheight, imwidth) = np.shape(image)
 
@@ -188,24 +167,26 @@ if __name__ == '__main__':
 
     blank[top:top + imheight, left:left + imwidth] = image
 
+    #plt.imshow(blank, cmap='Greys', interpolation='none')
+    #plt.show()
+
     # pixels that have been filled in
     mask = np.zeros((h,w), dtype=float)
     mask[top:top + imheight, left:left + imwidth] = 1
 
     gaussian = gkern(window_size, 3)
-
-    progress = 0
-    total = np.size(blank) - np.size(image)
-
-    while True:
+    for i in range(5):
+        print i
         pixels_to_fill = dilate(mask)
-        if len(pixels_to_fill) == 0:
-                break
-        for x,y in pixels_to_fill:
-            mask_chunk = getWindow(mask, (x,y), window_size)
-            pixelWindow = getWindow(blank, (x,y), window_size)
 
-            possibleFill = find_match(pixelWindow, mask_chunk, image)
+        for x,y in pixels_to_fill:
+            ptop = x - (window_size / 2)
+            pleft = y - (window_size / 2)
+
+            pixelWindow = blank[ptop:ptop + window_size, pleft:pleft + window_size]
+            pixelMask = mask[ptop:ptop + window_size, pleft:pleft + window_size]
+
+            possibleFill = find_match(pixelWindow, pixelMask, image)
 
             candidateFill = []
 
@@ -215,25 +196,19 @@ if __name__ == '__main__':
                 errors.append(error)
 
             minError = min(errors) * 1.1
-            print minError
+
+
             for error, pixel in possibleFill:
-                if error <= 1.1*minError:
+                if error <= minError:
                     candidateFill.append(pixel)
 
-            #sys.exit(0)
             blank[x,y] = random.sample(candidateFill, 1)[0]
             mask[x,y] = 1
-            progress += 1
-            #raw_input("Press Enter to continue...")
 
-        print "%d out of %d (%d %%)" % (progress, total , int(100*progress/total))
-
-    plt.subplot(1,2,1)
-    plt.imshow(blank, cmap='Greys', interpolation='none')
-
-    plt.subplot(1,2,2)
-    plt.imshow(image, cmap='Greys', interpolation='none')
-    plt.show()
-
-
+# test for dilate
+#mask[top + 25:top + imheight - 25, left + 25:left + imwidth - 25] = 0
+    #test = np.copy(mask)
+    #plt.imshow(test, cmap = 'Greys', interpolation = 'none')
+    #print dilate(test)
+    
 
