@@ -96,11 +96,11 @@ def dilate(image):
 
 # assume window size is odd
 def getWindow(image, center, winSize):
+    (h, w) = np.shape(image)
 
-    (h, w, color) = np.shape(image)
     x,y = center
     side = (winSize / 2)
-    window = np.zeros((winSize,winSize, color), dtype=np.uint8)
+    window = np.zeros((winSize,winSize), dtype=np.uint8)
 
     # set boundaries of image window
     top = x - side
@@ -120,18 +120,19 @@ def getWindow(image, center, winSize):
         wTop = 0 - top 
         top = 0 
     if bottom > h - 1:
-        wBottom = wBottom - (bottom - h + 1)
+        wBottom = wBottom - (bottom - h)
         bottom = h - 1
     if left < 0:
         wLeft = 0 - left
         left = 0
     if right > w - 1:
-        wRight = wRight - (right - w + 1)
+        wRight = wRight - (right - w )
         right = w - 1
 
-    window[wTop:wBottom, wLeft:wRight, :] = image[top:bottom, left:right, :]
+    window[wTop:wBottom, wLeft:wRight] = image[top:bottom, left:right]
 
     return window
+
 
 if __name__ == '__main__':
 
@@ -171,7 +172,7 @@ if __name__ == '__main__':
         image = plt.imread('images/rings.jpg')
     image = image
 
-    test_image = np.zeros((7,7))
+    test_image = np.zeros((9,9))
     for (x,y) in [
         (1,0),
         (1,1),
@@ -184,12 +185,12 @@ if __name__ == '__main__':
         (2,4),
         (2,6),
     ]:
-        test_image[x,y] = 255
-        test_image[x+4, y] = 255
+        test_image[x+1,y+1] = 255
+        test_image[x+5, y+1] = 255
 
     image = test_image
 
-    (h, w) = (30, 30)
+    (h, w) = (101, 101)
 
     window_size = 3
 
@@ -197,20 +198,21 @@ if __name__ == '__main__':
 
     blank = np.zeros((h, w), dtype=np.uint8)
 
-    top = (h - imheight) / 2
-    left = (w - imwidth) / 2
+    top = (h - 5) / 2
+    left = (w - 5) / 2
 
-    blank[top:top + imheight, left:left + imwidth] = image[]
+    blank[top:top + 5, left:left + 5] = image[2:7, 2:7]
 
     #plt.imshow(blank, cmap='Greys', interpolation='none')
     #plt.show()
 
     # pixels that have been filled in
     mask = np.zeros((h,w), dtype=float)
-    mask[top:top + imheight, left:left + imwidth] = 1
+    mask[top:top + 5, left:left + 5] = 1
 
     gaussian = gkern(window_size, 3)
-    for i in range(5):
+
+    for i in range(10):
         print i
         pixels_to_fill = dilate(mask)
         for x,y in pixels_to_fill:
@@ -244,7 +246,7 @@ if __name__ == '__main__':
             #sys.exit(0)
             blank[x,y] = random.sample(candidateFill, 1)[0]
             mask[x,y] = 1
-            raw_input("Press Enter to continue...")
+            #raw_input("Press Enter to continue...")
 
     plt.subplot(1,2,1)
     plt.imshow(blank, cmap='Greys', interpolation='none')
@@ -259,5 +261,5 @@ if __name__ == '__main__':
     #test = np.copy(mask)
     #plt.imshow(test, cmap = 'Greys', interpolation = 'none')
     #print dilate(test)
-    
+
 
