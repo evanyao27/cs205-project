@@ -4,9 +4,10 @@ from scipy.ndimage.filters import gaussian_filter
 import sys
 import scipy.stats as st
 import random
+import time
 
 
-def find_match(template, mask, image):
+def find_match(template, mask, image, delta = 20):
     '''
     Finds a match of the template in the mask
     '''
@@ -22,14 +23,19 @@ def find_match(template, mask, image):
     # looping through all possible windows
     for h in range(h_i - h_t):
         for w in range(w_i - w_t):
-            results.append((sum_square_error(template, image[h:h+h_t, w:w+w_t],
-                                            mask), image[h,w]))
+            error = sum_square_error(template, image[h:h+h_t, w:w+w_t], mask)
+            h_temp = h + mask.shape[0]/2
+            w_temp = w + mask.shape[0]/2
+            pix = image[h_temp,w_temp]
+            print "Centered at (%d, %d), intensity = %d, error = %d" % (h_temp, w_temp, pix, error)
+            results.append((error, pix))
+            if error < delta:
+                break
     return results
 
 
 def sum_square_error(template, image_chunk, mask):
     global gaussian
-
     '''
     Returns the sum of square error of a particular template on
     top of an image chunk. Uses the provided gaussian for weighting.
@@ -47,7 +53,6 @@ def sum_square_error(template, image_chunk, mask):
             if mask[i,j]:
                 count += 1
                 total += (template[i,j] - image_chunk[i,j]) ** 2 * gaussian[i,j]
-
     return total / float(count)
 
 
@@ -110,19 +115,45 @@ if __name__ == '__main__':
     # if len(sys.argv) != 1:
     #     sys.exit(0)
 
-    # image = plt.imread('images/sand_template.gif')
 
-    image = np.zeros((11, 11))
-    image[0:11:2, 0:11:2] = 1
-    image[1:11:2, 1:11:2] = 1
+    def rgb2gray(rgb):
+
+        r, g, b = rgb[:,:,0], rgb[:,:,1], rgb[:,:,2]
+        gray = 0.2989 * r + 0.5870 * g + 0.1140 * b
+
+        return gray
 
     #image = plt.imread('images/sand_template.gif')[:,:,1]
     #plt.imshow(image, cmap='Greys', interpolation='none')
     #plt.show()
 
+    try:
+        image = rgb2gray(plt.imread('images/rings.jpg'))
+    except:
+        image = plt.imread('images/rings.jpg')
+    image = image
+
+    test_image = np.zeros((7,7))
+    for (x,y) in [
+        (1,0),
+        (1,1),
+        (1,2),
+        (1,4),
+        (1,5),
+        (1,6),
+        (2,0),
+        (2,2),
+        (2,4),
+        (2,6),
+    ]:
+        test_image[x,y] = 255
+        test_image[x+4, y] = 255
+
+    image = test_image
+
     (h, w) = (30, 30)
 
-    window_size = 5
+    window_size = 3
 
     (imheight, imwidth) = np.shape(image)
 
@@ -131,7 +162,7 @@ if __name__ == '__main__':
     top = (h - imheight) / 2
     left = (w - imwidth) / 2
 
-    blank[top:top + imheight, left:left + imwidth] = image
+    blank[top:top + imheight, left:left + imwidth] = image[]
 
     #plt.imshow(blank, cmap='Greys', interpolation='none')
     #plt.show()
@@ -144,15 +175,20 @@ if __name__ == '__main__':
     for i in range(5):
         print i
         pixels_to_fill = dilate(mask)
-
         for x,y in pixels_to_fill:
+            print "Filled in (%d, %d)" % (x,y)
             ptop = x - (window_size / 2)
             pleft = y - (window_size / 2)
 
             pixelWindow = blank[ptop:ptop + window_size, pleft:pleft + window_size]
             pixelMask = mask[ptop:ptop + window_size, pleft:pleft + window_size]
 
+            print pixelWindow
+            print pixelMask
+
             possibleFill = find_match(pixelWindow, pixelMask, image)
+
+            print possibleFill
 
             candidateFill = []
 
@@ -162,14 +198,15 @@ if __name__ == '__main__':
                 errors.append(error)
 
             minError = min(errors) * 1.1
-
-
             for error, pixel in possibleFill:
-                if error <= minError:
+                if error <= 1.1*minError:
                     candidateFill.append(pixel)
+            print candidateFill
 
+            #sys.exit(0)
             blank[x,y] = random.sample(candidateFill, 1)[0]
             mask[x,y] = 1
+            raw_input("Press Enter to continue...")
 
     plt.subplot(1,2,1)
     plt.imshow(blank, cmap='Greys', interpolation='none')
