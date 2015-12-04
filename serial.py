@@ -92,22 +92,24 @@ def dilate(image):
 # assume window size is odd
 def getWindow(image, center, winSize):
 
-    (h, w, color) = np.shape(image)
+    
+
+    (h, w, c) = np.shape(image)
     x,y = center
     side = (winSize / 2)
-    window = np.zeros((winSize,winSize, color), dtype=np.uint8)
+    window = np.zeros((winSize,winSize, c), dtype=np.uint8)
 
     # set boundaries of image window
     top = x - side
-    bottom = x + side
+    bottom = x + side + 1
     left = y - side
-    right = y + side
+    right = y + side + 1
 
     # boundaries of window
     wTop = 0
-    wBottom = winSize - 1
+    wBottom = winSize 
     wLeft = 0
-    wRight = winSize - 1
+    wRight = winSize 
 
     # keep image boundary within image
     # also update into where we copy the image
@@ -124,7 +126,7 @@ def getWindow(image, center, winSize):
         wRight = wRight - (right - w + 1)
         right = w - 1
 
-    window[wTop:wBottom, wLeft:wRight, :] = image[top:bottom, left:right, :]
+    window[wTop:wBottom, wLeft:wRight] = image[top:bottom, left:right]
 
     return window
 
