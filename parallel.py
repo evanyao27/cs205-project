@@ -1,39 +1,24 @@
 import sys
-sys.path.append('../util')
+import os.path
+sys.path.append('util')
 
 import set_compiler
 set_compiler.install()
 
 import pyximport
-pyximport.install()
-
 import numpy as np
+pyximport.install(setup_args={"include_dirs":np.get_include()},
+                  reload_support=True)
+
 from timer import Timer
-from functions import find_match
+from functions import sum_square_error
+import scipy.stats as st
 
-def sum_square_error(template, image_chunk, mask):
-    global gaussian
+s = 10000
 
-    '''
-    Returns the sum of square error of a particular template on
-    top of an image chunk. Uses the provided gaussian for weighting.
-    '''
-    # checking sizes
-    assert np.shape(template) == np.shape(image_chunk)
-    assert np.shape(image_chunk) == np.shape(gaussian)
-    assert np.shape(mask) == np.shape(image_chunk)
-
-    total = 0
-    count = 0
-
-    for i in range(np.shape(template)[0]):
-        for j in range(np.shape(template)[1]):
-            if mask[i,j]:
-                count += 1
-                total += (template[i,j] - image_chunk[i,j]) ** 2 * gaussian[i,j]
-
-    return total / float(count)
-
+template = np.ones((s,s), dtype=np.double)
+image = np.zeros((s,s), dtype=np.double)
+mask = np.ones((s,s), dtype=np.double)
 
 def gkern(kernlen=21, nsig=3):
     """Returns a 2D Gaussian kernel array."""
@@ -45,170 +30,15 @@ def gkern(kernlen=21, nsig=3):
     kernel = kernel_raw/kernel_raw.sum()
     return kernel
 
+gaussian = gkern(s, 3)
+gaussian = np.double(gaussian)
 
-def dilate(image):
-    '''
-    Dilates a binary image
-    '''
-    dilatedList = []
-    dilated = np.copy(image)
-    (h,w) = np.shape(image)
+with Timer() as t:
+    sum_square_error(template.ravel(), image.ravel(), mask.ravel(), gaussian.ravel())
+print t.interval
 
-    for i in range(h):
-        for j in range(w):
-            if image[i,j] == 1:
-                # up/down/left/right
-                if i > 0:
-                    dilated[i - 1, j] = 1
-                if i < h - 1:
-                    dilated[i + 1, j] = 1
-                if j > 0:
-                    dilated[i, j - 1] = 1
-                if j < w - 1:
-                    dilated[i, j + 1] = 1
-
-                # corners
-                if i > 0 and j > 0:
-                    dilated[i - 1, j - 1] = 1
-                if i > 0 and j < w - 1:
-                    dilated[i - 1, j + 1] = 1
-                if i < h - 1 and j > 0:
-                    dilated[i + 1, j - 1] = 1
-                if i < h - 1 and j < w - 1:
-                    dilated[i + 1, j + 1] = 1
-
-
-    for i in range(h):
-        for j in range(w):
-            if image[i,j] == 0 and dilated[i,j] == 1:
-                dilatedList.append((i,j))
-
-    return dilatedList
-
-# assume window size is odd
-def getWindow(image, center, winSize):
-    (h, w, c) = np.shape(image)
-    x,y = center
-    side = (winSize / 2)
-    window = np.zeros((winSize,winSize, c), dtype=np.uint8)
-
-    # set boundaries of image window
-    top = x - side
-    bottom = x + side + 1
-    left = y - side
-    right = y + side + 1
-
-    # boundaries of window
-    wTop = 0
-    wBottom = winSize 
-    wLeft = 0
-    wRight = winSize 
-
-    # keep image boundary within image
-    # also update into where we copy the image
-    if top < 0:
-        wTop = 0 - top 
-        top = 0 
-    if bottom > h - 1:
-        wBottom = wBottom - (bottom - h + 1)
-        bottom = h - 1
-    if left < 0:
-        wLeft = 0 - left
-        left = 0
-    if right > w - 1:
-        wRight = wRight - (right - w + 1)
-        right = w - 1
-
-    window[wTop:wBottom, wLeft:wRight] = image[top:bottom, left:right]
-
-    return window
-
-
-if __name__ == '__main__':
-
-    # test_image = np.zeros((11, 11))
-    # test_template = np.zeros((5,5))
-
-    # test_image[0:11:2,0:11:2] = 1
-    # test_image[1:11:2,1:11:2] = 1
-
-    # test_template[0:5:2, :] = 1
-    # test_template[:, 1:11:2] = 1
-
-    # plt.imshow(test_template, cmap='Greys', interpolation='none')
-    # plt.show()
-
-    # plt.imshow(test_image, cmap = 'Greys', interpolation='none')
-    # plt.show()
-
-    # if len(sys.argv) != 1:
-    #     sys.exit(0)
-
-    # image = plt.imread('images/sand_template.gif')
-
-    image = np.zeros((11, 11))
-    image[0:11:2, 0:11:2] = 1
-    image[1:11:2, 1:11:2] = 1
-
-    #image = plt.imread('images/sand_template.gif')[:,:,1]
-    #plt.imshow(image, cmap='Greys', interpolation='none')
-    #plt.show()
-
-    (h, w) = (30, 30)
-
-    window_size = 5
-
-    (imheight, imwidth) = np.shape(image)
-
-    blank = np.zeros((h, w), dtype=np.uint8)
-
-    top = (h - imheight) / 2
-    left = (w - imwidth) / 2
-
-    blank[top:top + imheight, left:left + imwidth] = image
-
-    #plt.imshow(blank, cmap='Greys', interpolation='none')
-    #plt.show()
-
-    # pixels that have been filled in
-    mask = np.zeros((h,w), dtype=float)
-    mask[top:top + imheight, left:left + imwidth] = 1
-
-    gaussian = gkern(window_size, 3)
-    for i in range(5):
-        print i
-        pixels_to_fill = dilate(mask)
-
-        for x,y in pixels_to_fill:
-            ptop = x - (window_size / 2)
-            pleft = y - (window_size / 2)
-
-            pixelWindow = blank[ptop:ptop + window_size, pleft:pleft + window_size]
-            pixelMask = mask[ptop:ptop + window_size, pleft:pleft + window_size]
-
-            possibleFill = find_match(pixelWindow, pixelMask, image)
-
-            candidateFill = []
-
-            errors = []
-
-            for error, pixel in possibleFill:
-                errors.append(error)
-
-            minError = min(errors) * 1.1
-
-
-            for error, pixel in possibleFill:
-                if error <= minError:
-                    candidateFill.append(pixel)
-
-            blank[x,y] = random.sample(candidateFill, 1)[0]
-            mask[x,y] = 1
-
-# test for dilate
-#mask[top + 25:top + imheight - 25, left + 25:left + imwidth - 25] = 0
-    #test = np.copy(mask)
-    #plt.imshow(test, cmap = 'Greys', interpolation = 'none')
-    #print dilate(test)
-    
+from serial import sum_square_error
+with Timer() as t:
+    sum_square_error(template, image, mask, gaussian)
+print t.interval
 

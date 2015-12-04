@@ -32,8 +32,8 @@ def find_match(template, mask_chunk, image, delta = 0.3):
     return results
 
 
-def sum_square_error(template, image_chunk, mask):
-    global gaussian
+def sum_square_error(template, image_chunk, mask, gaussian):
+    #global gaussian
     '''
     Returns the sum of square error of a particular template on
     top of an image chunk. Uses the provided gaussian for weighting.
@@ -200,7 +200,7 @@ if __name__ == '__main__':
     while True:
         pixels_to_fill = dilate(mask)
         if len(pixels_to_fill) == 0:
-                break
+            break
         for x,y in pixels_to_fill:
             mask_chunk = getWindow(mask, (x,y), window_size)
             pixelWindow = getWindow(blank, (x,y), window_size)
