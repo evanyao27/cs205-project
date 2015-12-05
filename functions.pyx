@@ -25,7 +25,7 @@ cpdef sum_square_error(np.double_t[:] template,
         double count = 0
         int i
 
-    for i in prange(template.shape[0],num_threads=4,nogil=True,schedule='static'):
+    for i in prange(template.shape[0],num_threads=1,nogil=True,schedule='static'):
             if mask[i]:
                 count += 1
                 total += (template[i] - image_chunk[i]) ** 2 * gaussian[i]

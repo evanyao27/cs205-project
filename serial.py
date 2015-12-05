@@ -7,7 +7,7 @@ import random
 import time
 
 
-def find_match(template, mask_chunk, image, delta = 0.3):
+def find_match(template, mask_chunk, image, gaussian, delta = 0.3):
     '''
     Finds a match of the template in the mask
     '''
@@ -24,7 +24,7 @@ def find_match(template, mask_chunk, image, delta = 0.3):
     for h in range(h_i):
         for w in range(w_i):
             image_chunk = getWindow(image, (h,w), window_size)
-            error = sum_square_error(template, image_chunk, mask_chunk)
+            error = sum_square_error(template, image_chunk, mask_chunk, gaussian)
             pix = image[h,w]
             results.append((error, pix))
             if error < delta:
@@ -110,7 +110,7 @@ def getWindow(image, center, winSize):
     (h, w) = np.shape(image)
     x,y = center
     side = (winSize / 2)
-    window = np.zeros((winSize,winSize), dtype=np.uint8)
+    window = np.zeros((winSize,winSize), dtype=float)
 
     # set boundaries of image window
     top = x - side
@@ -154,7 +154,6 @@ if __name__ == '__main__':
         image = rgb2gray(plt.imread('images/rings.jpg'))
     except:
         image = plt.imread('images/rings.jpg')
-    image = image
 
     test_image = np.zeros((9,9))
     for (x,y) in [
@@ -175,13 +174,13 @@ if __name__ == '__main__':
     image = test_image
 
 
-    (h, w) = (41, 41)
+    (h, w) = (51, 51)
 
     window_size = 15
 
     (imheight, imwidth) = np.shape(image)
 
-    blank = np.zeros((h, w), dtype=np.uint8)
+    blank = np.zeros((h, w), dtype=float)
 
     top = (h - imheight) / 2
     left = (w - imwidth) / 2
@@ -205,7 +204,7 @@ if __name__ == '__main__':
             mask_chunk = getWindow(mask, (x,y), window_size)
             pixelWindow = getWindow(blank, (x,y), window_size)
 
-            possibleFill = find_match(pixelWindow, mask_chunk, image)
+            possibleFill = find_match(pixelWindow, mask_chunk, image, gaussian)
 
             candidateFill = []
 
@@ -215,7 +214,7 @@ if __name__ == '__main__':
                 errors.append(error)
 
             minError = min(errors) * 1.1
-            print minError
+
             for error, pixel in possibleFill:
                 if error <= 1.1*minError:
                     candidateFill.append(pixel)
@@ -230,8 +229,10 @@ if __name__ == '__main__':
 
     plt.subplot(1,2,1)
     plt.imshow(blank, cmap='Greys', interpolation='none')
+    plt.title("Result")
 
     plt.subplot(1,2,2)
+    plt.title("Template")
     plt.imshow(image, cmap='Greys', interpolation='none')
     plt.show()
 

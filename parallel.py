@@ -14,7 +14,7 @@ from timer import Timer
 from functions import sum_square_error
 import scipy.stats as st
 
-s = 10000
+s = 100
 
 template = np.ones((s,s), dtype=np.double)
 image = np.zeros((s,s), dtype=np.double)
@@ -38,6 +38,7 @@ with Timer() as t:
 print t.interval
 
 from serial import sum_square_error
+
 with Timer() as t:
     sum_square_error(template, image, mask, gaussian)
 print t.interval
