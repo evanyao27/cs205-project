@@ -10,26 +10,29 @@ pyximport.install(setup_args={"include_dirs":np.get_include()},
                   reload_support=True)
 
 from timer import Timer
-from functions import sum_square_error
+from functions import find_matches
 from serial import gkern
 
-s = 10000
-
-template = np.ones((s,s), dtype=np.double)
-image = np.zeros((s,s), dtype=np.double)
-mask = np.ones((s,s), dtype=np.double)
-
-gaussian = gkern(s, 3)
-gaussian = np.double(gaussian)
+t = 5
+s = t*t
 
 
+test_template = np.ones(s)
+test_windows = np.array(
+    [range(s) for _ in range(s)]
+, dtype=np.double)
+
+test_mask = np.ones(s)
+test_gaussian = np.ones(s)
+results = np.zeros(s)
+
+total = 0
 for i in range(1, 12):
     print "Num Threads: %d " % i
     total = 0
-    for _ in range(1):
+    for _ in range(100):
+        results = np.zeros(s)
         with Timer() as t:
-            sum_square_error(template.ravel(), image.ravel(), mask.ravel(), gaussian.ravel(), i)
+            find_matches(test_template, test_mask, test_windows, test_gaussian, results, i)
         total += t.interval
     print total
-
-
