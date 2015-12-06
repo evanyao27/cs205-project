@@ -55,3 +55,4 @@ cpdef find_match(np.double_t[:] template,
     	results[window_number] += (template[pixel_number] - image_windows[window_number][pixel_number]) ** 2 * gaussian[pixel_number]
 
     return results
+
