@@ -38,21 +38,25 @@ cpdef find_match(np.double_t[:] template,
                  np.double_t[:,:] image_windows,
                  np.double_t[:] gaussian):
 
-	cdef int pixel, i, np.double_t* results # I think there is overhead for declaring an array like this
+    cdef:
+        int pixel, i, num_windows, size_template, window_number, pixel_number
+        np.ndarray results = np.zeros([num_windows*size_template], dtype = np.double_t)
+
 
     # checking that the size of the template and mask are the same
     assert np.shape(template) == np.shape(mask)
-    results = <np.double_t *>malloc(iLen*cython.sizeof(np.double_t))
-
+    #results = <np.double_t *>malloc(num_windows*size_template*sizeof(np.double_t))
+    
+    
     num_windows = image_windows.shape[0]
     size_template = template.shape[0]
 
     # looping through all possible windows
     for i in prange(num_windows * size_template, num_threads=1, nogil=True, schedule='static'):
-    	window_number = i / num_windows
+        window_number = i / num_windows
         pixel_number = i % size_template
 
-    	results[window_number] += (template[pixel_number] - image_windows[window_number][pixel_number]) ** 2 * gaussian[pixel_number]
+        results[window_number] += (template[pixel_number] - image_windows[window_number][pixel_number]) ** 2 * gaussian[pixel_number]
 
     return results
 
