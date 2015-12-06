@@ -32,26 +32,26 @@ cpdef sum_square_error(np.double_t[:] template,
 
     return total / float(count)
 
-'''
-cpdef find_match(np.int8[:,:] template, np.int8[:,:] mask, np.int8[:,:] image):
-	cdef int h_t, w_t, h_i, w_i, h, w
-		np.int8[:,:] results
 
-    Finds a match of the template in the mask
+cpdef find_match(np.double_t[:] template,
+                 np.double_t[:] mask,
+                 np.double_t[:,:] image_windows,
+                 np.double_t[:] gaussian):
+
+	cdef int pixel, i, np.double_t* results # I think there is overhead for declaring an array like this
 
     # checking that the size of the template and mask are the same
     assert np.shape(template) == np.shape(mask)
+    results = <np.double_t *>malloc(iLen*cython.sizeof(np.double_t))
 
-    # size variables
-    (h_t, w_t) = np.shape(template)
-    (h_i, w_i) = np.shape(image)
-
-    results = []
+    num_windows = image_windows.shape[0]
+    size_template = template.shape[0]
 
     # looping through all possible windows
-    for h in range(h_i - h_t):
-        for w in range(w_i - w_t):
-            results.append((sum_square_error(template, image[h:h+h_t, w:w+w_t],
-                                            mask), image[h,w]))
+    for i in prange(num_windows * size_template, num_threads=1, nogil=True, schedule='static'):
+    	window_number = i / num_windows
+        pixel_number = i % size_template
+
+    	results[window_number] += (template[pixel_number] - image_windows[window_number][pixel_number]) ** 2 * gaussian[pixel_number]
+
     return results
-'''

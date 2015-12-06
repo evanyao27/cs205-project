@@ -75,16 +75,16 @@ def fill_border(image, top, left, width):
 
     for i in range(width):
         if top >= 0:
-            image[top, left + i] = 1
-            image[bottom, left + i] = 1
+            # image[top, left + i] = 1
+            # image[bottom, left + i] = 1
 
             if i != 0 and i != width - 1:
                 indices.append((top, left + i))
                 indices.append((bottom, left + i))
 
         if left >= 0:
-            image[top + i, left] = 1
-            image[top + i, right] = 1
+            # image[top + i, left] = 1
+            # image[top + i, right] = 1
 
             indices.append((top + i, left))
             indices.append((top + i, right))
@@ -111,13 +111,6 @@ def sum_square_error(template, image_chunk, mask, gaussian):
             count += 1
             total += (template[i] - image_chunk[i]) ** 2 * gaussian[i]
 
-    if total < 0.001:
-        print "Mask"
-        print np.reshape(mask, (7,7))
-        print "Template"
-        print np.reshape(template, (7,7))
-        print "Image Chunk"
-        print np.reshape(image_chunk, (7,7))
     return total / float(count)
 
 
@@ -136,12 +129,12 @@ def find_match(template, mask_chunk, windows, gaussian, delta = 0.3):
 
     # looping through all possible windows
     for (pixel, window) in windows:
-
         error = sum_square_error(window, template, mask_chunk, gaussian)
         results.append((error, pixel))
-        if error < delta:
-            break
 
+    errors, _ = zip(*results)
+    print "Best Match in Original Image: "
+    print np.reshape(windows[errors.index(min(errors))][1], (9,9))
     return results
 
 
@@ -174,11 +167,11 @@ if __name__ == '__main__':
         test_image[x+5,y+1] = 255
 
     image = test_image
-    window_size = 7
+    window_size = 9
 
     # output image size
-    output_h = 15
-    output_w = 15
+    output_h = 23
+    output_w = 23
 
     # if we're trying to synthesize something smaller than our template
     if output_h <= image.shape[0] or output_w < image.shape[1]:
@@ -207,18 +200,26 @@ if __name__ == '__main__':
     total = np.size(output) - np.size(image)
 
     for i in range(1, (output_h - image.shape[0])/2 + 1):
-        mask, pixels_to_fill = fill_border(mask, top - i , left - i,  image.shape[0] + 2 * i)
-
+        print mask
+        new_mask, pixels_to_fill = fill_border(mask, top - i , left - i,  image.shape[0] + 2 * i)
+        print new_mask
         for x,y in pixels_to_fill:
             print "Filling for (%d, %d) " % (x,y)
             mask_chunk = getWindow(mask, (x,y), window_size).ravel()
             pixelWindow = getWindow(output, (x,y), window_size).ravel()
 
+            assert mask_chunk[mask_chunk.size / 2] == 0
+            print "Template"
+            print np.reshape(pixelWindow, (window_size,window_size))
+
+            print "Mask"
+            print np.reshape(mask_chunk, (window_size, window_size))
             possibleFill = find_match(pixelWindow, mask_chunk, image_windows, gaussian.ravel())
 
             possibleFill.sort(key=lambda x: x[0])
-
             output[x,y] = possibleFill[0][1]
+            mask[x,y] = 1
+
 
         '''
         for x,y in pixels_to_fill:
@@ -249,14 +250,14 @@ if __name__ == '__main__':
         print "%d out of %d (%d %%)" % (progress, total , int(100*progress/total))
 
         '''
-    # plt.subplot(1,2,1)
-    # plt.imshow(blank, cmap='Greys', interpolation='none')
-    # plt.title("Result")
-    #
-    # plt.subplot(1,2,2)
-    # plt.title("Template")
-    # plt.imshow(image, cmap='Greys', interpolation='none')
-    # plt.show()
+    plt.subplot(1,2,1)
+    plt.imshow(output, cmap='Greys', interpolation='none')
+    plt.title("Result")
+
+    plt.subplot(1,2,2)
+    plt.title("Template")
+    plt.imshow(image, cmap='Greys', interpolation='none')
+    plt.show()
 
 
 
