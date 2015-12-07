@@ -1,5 +1,4 @@
 import sys
-import os.path
 sys.path.append('util')
 
 import set_compiler
@@ -10,63 +9,14 @@ import numpy as np
 pyximport.install(setup_args={"include_dirs":np.get_include()},
                   reload_support=True)
 
+from helpers import *
 from timer import Timer
 from functions import sum_square_error, find_matches
 
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.ndimage.filters import gaussian_filter
-import sys
-import scipy.stats as st
-import random
 import time
 
-def gkern(kernlen=21, nsig=3):
-    """Returns a 2D Gaussian kernel array."""
-
-    interval = (2*nsig+1.)/(kernlen)
-    x = np.linspace(-nsig-interval/2., nsig+interval/2., kernlen+1)
-    kern1d = np.diff(st.norm.cdf(x))
-    kernel_raw = np.sqrt(np.outer(kern1d, kern1d))
-    kernel = kernel_raw/kernel_raw.sum()
-    return kernel
-
-def getWindow(image, center, winSize):
-    (h, w) = np.shape(image)
-    x,y = center
-    side = (winSize / 2)
-    window = np.zeros((winSize,winSize), dtype=float)
-
-    # set boundaries of image window
-    top = x - side
-    bottom = x + side + 1
-    left = y - side
-    right = y + side + 1
-
-    # boundaries of window
-    wTop = 0
-    wBottom = winSize
-    wLeft = 0
-    wRight = winSize
-
-    # keep image boundary within image
-    # also update into where we copy the image
-    if top < 0:
-        wTop = 0 - top
-        top = 0
-    if bottom > h - 1:
-        wBottom = wBottom - (bottom - h + 1)
-        bottom = h - 1
-    if left < 0:
-        wLeft = 0 - left
-        left = 0
-    if right > w - 1:
-        wRight = wRight - (right - w + 1)
-        right = w - 1
-
-    window[wTop:wBottom, wLeft:wRight] = image[top:bottom, left:right]
-
-    return window
 
 def get_valid_windows(input, window_size):
     '''
@@ -76,6 +26,7 @@ def get_valid_windows(input, window_size):
     '''
 
     result = []
+    #print window_size
     for h in range(input.shape[0]):
         for w in range(input.shape[1]):
             result.append(getWindow(input, (h,w), window_size).ravel())
@@ -83,29 +34,6 @@ def get_valid_windows(input, window_size):
     return np.array(result)
 
 
-def fill_border(image, top, left, width):
-    bottom = top + width - 1
-    right = left + width - 1
-
-    indices = []
-
-    for i in range(width):
-        if top >= 0:
-            # image[top, left + i] = 1
-            # image[bottom, left + i] = 1
-
-            if i != 0 and i != width - 1:
-                indices.append((top, left + i))
-                indices.append((bottom, left + i))
-
-        if left >= 0:
-            # image[top + i, left] = 1
-            # image[top + i, right] = 1
-
-            indices.append((top + i, left))
-            indices.append((top + i, right))
-
-    return image, indices
 
 def find_match(template, mask_chunk, windows, gaussian, delta = 0.3):
     '''
@@ -127,120 +55,129 @@ def find_match(template, mask_chunk, windows, gaussian, delta = 0.3):
 
     return results
 
-def sum_square_error(template, image_chunk, mask, gaussian):
-    #global gaussian
-    '''
-    Returns the sum of square error of a particular template on
-    top of an image chunk. Uses the provided gaussian for weighting.
-    '''
-    # checking sizes
-    assert np.shape(template) == np.shape(image_chunk)
-    assert np.shape(image_chunk) == np.shape(gaussian)
-    assert np.shape(mask) == np.shape(image_chunk)
-
-    total = 0
-
-    for i in range(template.shape[0]):
-        if mask[i]:
-            total += (template[i] - image_chunk[i]) ** 2 * gaussian[i]
-
-    return total
-
-def rgb2gray(rgb):
-    r, g, b = rgb[:,:,0], rgb[:,:,1], rgb[:,:,2]
-    gray = 0.2989 * r + 0.5870 * g + 0.1140 * b
-    return gray
-
 try:
-    image = rgb2gray(plt.imread('images/rings.jpg'))
+    image = rgb2gray(plt.imread('images/text_template.gif')).astype(float)
 except:
-    image = plt.imread('images/rings.jpg')
+    image = plt.imread('images/text_template.gif').astype(float)
 
-test_image = np.zeros((9,9))
 
-for (x,y) in [
-    (1,0),
-    (1,1),
-    (1,2),
-    (1,4),
-    (1,5),
-    (1,6),
-    (2,0),
-    (2,2),
-    (2,4),
-    (2,6),
-]:
-    test_image[x+1,y+1] = 255
-    test_image[x+5,y+1] = 255
+def synthesize(input_image, output_size, window_size, epsilon = 0.1,
+               delta = 0.3, verbose = False, num_threads = 4):
+    """
+    Main function which returns a new image of shape 'output_size' synthesized
+     with the given additional parameters
 
-#image = test_image
-window_size = 9
+    :param input_image: np 2-D array representing the square static image
+    :param output_size: size of the square output image
+    :param window_size: size of the window used for finding matches
+    :param epsilon: any pixel whose window's error is within (1+epsilon)
+    :param delta: if we find a pixel whose window error less than delta, we will case
+     finding new candidates.
+    :param verbose: whether we should print progress
+    :return: a newly synthesized matrix
+    """
 
-# output image size
-output_h = 103
-output_w = 103
+    isColor = len(input_image.shape) > 2
 
-# if we're trying to synthesize something smaller than our template
-if output_h <= image.shape[0] or output_w < image.shape[1]:
-    raise Exception("Dimensions of synthesized image must be greater than that of input!")
+    if isColor:
+        gray_image = rgb2gray(input_image)
+        color_image = input_image[:,:,0:3]
+    else:
+        gray_image = input_image
 
-# our output image
-output = np.zeros((output_h, output_w), dtype=float)
+    # if we're trying to synthesize something smaller than our template
+    if output_size < gray_image.shape[0] or output_size < gray_image.shape[1]:
+        raise Exception("Dimensions of synthesized image must be greater than that of input!")
 
-# getting the corner coordinates of the image patch inside the blank (for now) output
-top = (output_h - image.shape[0]) / 2
-left = (output_w - image.shape[1]) / 2
+    # getting the corner coordinates of the image patch inside the blank (for now) output
+    top = (output_size - gray_image.shape[0]) / 2
+    left = (output_size - gray_image.shape[1]) / 2
 
-# plant the image inside the blank
-output[top:top + image.shape[0], left:left + image.shape[1]] = image
+    # our output image
+    output = np.zeros((output_size, output_size), dtype=float)
+    if isColor:
+        color_output = np.zeros((output_size, output_size, 3))
+        color_output[top:top + color_image.shape[0], left:left + color_image.shape[1], 0:3] = color_image
 
-# windows to try and match
-image_windows = get_valid_windows(image, window_size)
+    # plant the image inside the blank
+    output[top:top + gray_image.shape[0], left:left + gray_image.shape[1]] = gray_image
 
-# binary matrix of pixels that have already been filled in
-mask = np.zeros((output_h,output_w), dtype=float)
-mask[top:top + image.shape[0], left:left + image.shape[1]] = 1
+    # windows to try and match
+    image_windows = get_valid_windows(gray_image, window_size)
 
-gaussian = gkern(window_size, 3)
+    # binary matrix of pixels that have already been filled in
+    mask = np.zeros((output_size,output_size), dtype=float)
+    mask[top:top + gray_image.shape[0], left:left + gray_image.shape[1]] = 1
 
-progress = 0
-total = np.size(output) - np.size(image)
+    gaussian = gkern(window_size, 3)
 
-for i in range(1, (output_h - image.shape[0])/2 + 1):
-    print image_windows.size
-    print i, " out of ", (output_h - image.shape[0])/2 + 1
-    new_mask, pixels_to_fill = fill_border(mask, top - i , left - i,  image.shape[0] + 2 * i)
-    for x,y in pixels_to_fill:
-        mask_chunk = getWindow(mask, (x,y), window_size).ravel()
-        pixelWindow = getWindow(output, (x,y), window_size).ravel()
+    #print image_windows.shape
+    #raise Exception("stop")
+    for i in range(1, (output_size - gray_image.shape[0])/2 + 1):
+        if verbose:
+            print i, " out of ", (output_size - gray_image.shape[0])/2 + 1
 
-        assert mask_chunk[mask_chunk.size / 2] == 0
+        new_mask, pixels_to_fill = fill_border(mask, top - i, left - i,  gray_image.shape[0] + 2 * i)
 
-        possibleFill = np.zeros(image_windows.shape[0])
+        for x,y in pixels_to_fill:
+            mask_chunk = getWindow(mask, (x,y), window_size).ravel()
+            pixelWindow = getWindow(output, (x,y), window_size).ravel()
 
-        find_matches(pixelWindow, mask_chunk, image_windows, gaussian.ravel(), possibleFill, 1)
+            possibleFill = np.zeros(image_windows.shape[0])
 
-        possibleFill2 = find_match(pixelWindow, mask_chunk, image_windows, gaussian.ravel())
-        print possibleFill
-        print possibleFill2
-        print possibleFill - possibleFill2
-        assert (possibleFill == possibleFill2).all()
-        small_error_index = list(possibleFill2).index(min(possibleFill2))
-        output[x,y] = image_windows[small_error_index][image_windows.shape[1]/2]
+            find_matches(pixelWindow, mask_chunk, image_windows.ravel(), gaussian.ravel(), possibleFill, num_threads)
 
-        mask[x,y] = 1
-#
-plt.subplot(1,2,1)
-plt.imshow(output, cmap='Greys', interpolation='none')
-plt.title("Result")
+            index = np.random.choice(np.flatnonzero(possibleFill <= 1.1 * np.min(possibleFill)), 1)[0]
 
-plt.subplot(1,2,2)
-plt.title("Template")
-plt.imshow(image, cmap='Greys', interpolation='none')
+            output[x,y] = image_windows[index][image_windows.shape[1]/2]
+
+            if isColor:
+                color_output[x,y,0] = color_image[index / color_image.shape[0], index % color_image.shape[0], 0]
+                color_output[x,y,1] = color_image[index / color_image.shape[0], index % color_image.shape[0], 1]
+                color_output[x,y,2] = color_image[index / color_image.shape[0], index % color_image.shape[0], 2]
+
+            mask[x,y] = 1
+
+    if isColor:
+        return color_output
+    else:
+        return output
+
+def time_this(threads):
+    color_image = plt.imread('images/scale_template.gif')
+    end = 49
+
+    try:
+        color_image = color_image[:end,:end,:]
+    except:
+        color_image = color_image[:end,:end]
+
+    with Timer() as t:
+        new_image = synthesize(color_image, 89, 17, verbose = False, num_threads=threads)
+    print t.interval
+    return t.interval
+
+    # plt.subplot(1,2,1, aspect='equal')
+    # plt.imshow(new_image.astype(np.uint8), cmap='Greys', interpolation='none')
+    # plt.title("Result")
+    #
+    # plt.subplot(1,2,2, aspect='equal')
+    # plt.title("Template")
+    # plt.imshow(color_image, interpolation='none', cmap='Greys')
+    # plt.show()
+
+times = [time_this(i) for i in range(1, 9)]
+plt.plot(range(1,9), [34.645647049,
+35.4726171494,
+32.721255064,
+33.8481218815,
+34.9053170681,
+33.9290750027,
+34.4410350323,
+33.2712552292,
+])
+plt.title("Running Time for Overall Algorithm")
+plt.xlabel("Number of Threads")
+plt.ylabel("Time")
 plt.show()
-
-
-
-
-
 

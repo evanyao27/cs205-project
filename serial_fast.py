@@ -133,8 +133,8 @@ def find_match(template, mask_chunk, windows, gaussian, delta = 0.3):
         results.append((error, pixel))
 
     errors, _ = zip(*results)
-    print "Best Match in Original Image: "
-    print np.reshape(windows[errors.index(min(errors))][1], (9,9))
+    #print "Best Match in Original Image: "
+    #print np.reshape(windows[errors.index(min(errors))][1], (9,9))
     return results
 
 
@@ -166,7 +166,7 @@ if __name__ == '__main__':
         test_image[x+1,y+1] = 255
         test_image[x+5,y+1] = 255
 
-    image = test_image
+    #image = test_image
     window_size = 9
 
     # output image size
@@ -200,20 +200,20 @@ if __name__ == '__main__':
     total = np.size(output) - np.size(image)
 
     for i in range(1, (output_h - image.shape[0])/2 + 1):
-        print mask
+        #print mask
         new_mask, pixels_to_fill = fill_border(mask, top - i , left - i,  image.shape[0] + 2 * i)
-        print new_mask
+        #print new_mask
         for x,y in pixels_to_fill:
-            print "Filling for (%d, %d) " % (x,y)
+            #print "Filling for (%d, %d) " % (x,y)
             mask_chunk = getWindow(mask, (x,y), window_size).ravel()
             pixelWindow = getWindow(output, (x,y), window_size).ravel()
 
             assert mask_chunk[mask_chunk.size / 2] == 0
-            print "Template"
-            print np.reshape(pixelWindow, (window_size,window_size))
+            #print "Template"
+            #print np.reshape(pixelWindow, (window_size,window_size))
 
-            print "Mask"
-            print np.reshape(mask_chunk, (window_size, window_size))
+            #print "Mask"
+            #print np.reshape(mask_chunk, (window_size, window_size))
             possibleFill = find_match(pixelWindow, mask_chunk, image_windows, gaussian.ravel())
 
             possibleFill.sort(key=lambda x: x[0])

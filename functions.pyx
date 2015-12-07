@@ -39,23 +39,22 @@ cpdef sum_square_error(np.ndarray[np.double_t, ndim=1] template,
 @cython.wraparound(False)
 cpdef find_matches(np.ndarray[np.double_t, ndim=1] template,
                  np.ndarray[np.double_t, ndim=1] mask,
-                 np.ndarray[np.double_t, ndim=2] image_windows,
+                 np.ndarray[np.double_t, ndim=1] image_windows,
                  np.ndarray[np.double_t, ndim=1] gaussian,
                 np.ndarray[np.double_t, ndim=1] results, int n):
 
     cdef:
-        int pixel, i, num_windows, size_template, window_number, pixel_number
+        int i, size_template, window_number, pixel_number
 
     # checking that the size of the template and mask are the same
-    assert np.shape(template) == np.shape(mask)
-
-    num_windows = image_windows.shape[0]
+    #assert np.shape(template) == np.shape(mask)
     size_template = template.shape[0]
 
-    # looping through all possible windows
-    for i in prange(num_windows * size_template, num_threads=n, nogil=True, schedule='static'):
-        window_number = i / num_windows
+    for i in prange(image_windows.shape[0], num_threads=n, nogil=True, schedule='guided'):
+
+        window_number = i / size_template
         pixel_number = i % size_template
-        results[window_number] += mask[pixel_number] * (template[pixel_number] - image_windows[window_number,pixel_number]) ** 2 * gaussian[pixel_number]
+        if mask[pixel_number]:
+            results[window_number] += (template[pixel_number] - image_windows[i]) ** 2 * gaussian[pixel_number]
 
     return results[:]

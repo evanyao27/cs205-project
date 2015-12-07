@@ -22,14 +22,20 @@ mask = np.ones((s,s), dtype=np.double)
 gaussian = gkern(s, 3)
 gaussian = np.double(gaussian)
 
-
-for i in range(1, 12):
+results = []
+for i in range(1, 8):
     print "Num Threads: %d " % i
     total = 0
-    for _ in range(1):
+    for _ in range(100000/s):
         with Timer() as t:
             sum_square_error(template.ravel(), image.ravel(), mask.ravel(), gaussian.ravel(), i)
         total += t.interval
-    print total
+    results.append(total)
 
+import matplotlib.pyplot as plt
+plt.plot(range(1,8), results)
 
+plt.title("Subprocess: Difference of Squares (%d x %d window)" % (s, s))
+plt.ylabel("Time for %d calculations" % (10000/s))
+plt.xlabel("Number of Threads")
+plt.show()
