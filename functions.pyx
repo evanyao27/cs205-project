@@ -37,7 +37,7 @@ cpdef sum_square_error(np.ndarray[np.double_t, ndim=1] template,
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef find_matches(np.ndarray[np.double_t, ndim=1] template,
+cpdef find_matches_parallel(np.ndarray[np.double_t, ndim=1] template,
                  np.ndarray[np.double_t, ndim=1] mask,
                  np.ndarray[np.double_t, ndim=1] image_windows,
                  np.ndarray[np.double_t, ndim=1] gaussian,

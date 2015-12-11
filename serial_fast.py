@@ -1,10 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.ndimage.filters import gaussian_filter
-import sys
 import scipy.stats as st
-import random
-import time
 
 def gkern(kernlen=21, nsig=3):
     """Returns a 2D Gaussian kernel array."""
@@ -121,10 +117,6 @@ def find_match(template, mask_chunk, windows, gaussian, delta = 0.3):
     # checking that the size of the template and mask are the same
     assert np.shape(template) == np.shape(mask_chunk)
 
-    # size variables
-    window_size = template.shape[0]
-    (h_i, w_i) = np.shape(image)
-
     results = []
 
     # looping through all possible windows
@@ -133,8 +125,6 @@ def find_match(template, mask_chunk, windows, gaussian, delta = 0.3):
         results.append((error, pixel))
 
     errors, _ = zip(*results)
-    #print "Best Match in Original Image: "
-    #print np.reshape(windows[errors.index(min(errors))][1], (9,9))
     return results
 
 
@@ -149,29 +139,11 @@ if __name__ == '__main__':
     except:
         image = plt.imread('images/rings.jpg')
 
-    test_image = np.zeros((9,9))
-
-    for (x,y) in [
-        (1,0),
-        (1,1),
-        (1,2),
-        (1,4),
-        (1,5),
-        (1,6),
-        (2,0),
-        (2,2),
-        (2,4),
-        (2,6),
-    ]:
-        test_image[x+1,y+1] = 255
-        test_image[x+5,y+1] = 255
-
-    #image = test_image
     window_size = 9
 
     # output image size
-    output_h = 23
-    output_w = 23
+    output_h = 53
+    output_w = 53
 
     # if we're trying to synthesize something smaller than our template
     if output_h <= image.shape[0] or output_w < image.shape[1]:

@@ -11,11 +11,28 @@ pyximport.install(setup_args={"include_dirs":np.get_include()},
 
 from helpers import *
 from timer import Timer
-from functions import sum_square_error, find_matches
+from functions import sum_square_error, find_matches_parallel
 
 import numpy as np
 import matplotlib.pyplot as plt
-import time
+
+def process_image(image):
+    '''
+    Turns an image into a square with odd dimensions.
+    '''
+    try:
+        (h,w) = image.shape
+        c = False
+    except:
+        (h,w,c) = image.shape
+    size = min(h,w)
+
+    # clever trick to finding the greatest odd number <= size
+    size = size + (int((size + 1)/2) - int(size/2)) - 1
+    if c:
+        return image[:size, :size, :]
+    else:
+        return image[:size, :size]
 
 
 def get_valid_windows(input, window_size):
@@ -34,24 +51,17 @@ def get_valid_windows(input, window_size):
     return np.array(result)
 
 
-
-def find_match(template, mask_chunk, windows, gaussian, delta = 0.3):
+def find_matches(template, mask_chunk, windows, gaussian, results, n = 4):
     '''
     Finds a match of the template in the mask
     '''
     # checking that the size of the template and mask are the same
     assert np.shape(template) == np.shape(mask_chunk)
 
-    # size variables
-    window_size = template.shape[0]
-    (h_i, w_i) = np.shape(image)
-
-    results = []
-
     # looping through all possible windows
-    for window in windows:
-        error = sum_square_error(window, template, mask_chunk, gaussian)
-        results.append(error)
+    for i, window in enumerate(windows):
+        error = sum_square_error(window, template, mask_chunk, gaussian, n)
+        results[i] = error
 
     return results
 
@@ -62,7 +72,7 @@ except:
 
 
 def synthesize(input_image, output_size, window_size, epsilon = 0.1,
-               delta = 0.3, verbose = False, num_threads = 4):
+               verbose = False, num_threads = 4, parallel_2 = True):
     """
     Main function which returns a new image of shape 'output_size' synthesized
      with the given additional parameters
@@ -71,11 +81,12 @@ def synthesize(input_image, output_size, window_size, epsilon = 0.1,
     :param output_size: size of the square output image
     :param window_size: size of the window used for finding matches
     :param epsilon: any pixel whose window's error is within (1+epsilon)
-    :param delta: if we find a pixel whose window error less than delta, we will case
+    :param delta: if we find a pixel whose window error less than delta, we will cease
      finding new candidates.
     :param verbose: whether we should print progress
     :return: a newly synthesized matrix
     """
+
 
     isColor = len(input_image.shape) > 2
 
@@ -111,6 +122,13 @@ def synthesize(input_image, output_size, window_size, epsilon = 0.1,
 
     gaussian = gkern(window_size, 3)
 
+    if parallel_2:
+        find_match = find_matches
+        image_windows_arg = image_windows
+    else:
+        find_match = find_matches_parallel
+        image_windows_arg = image_windows.ravel()
+
     #print image_windows.shape
     #raise Exception("stop")
     for i in range(1, (output_size - gray_image.shape[0])/2 + 1):
@@ -125,11 +143,11 @@ def synthesize(input_image, output_size, window_size, epsilon = 0.1,
 
             possibleFill = np.zeros(image_windows.shape[0])
 
-            find_matches(pixelWindow, mask_chunk, image_windows.ravel(), gaussian.ravel(), possibleFill, num_threads)
+            find_match(pixelWindow, mask_chunk, image_windows_arg, gaussian.ravel(), possibleFill, num_threads)
 
             index = np.random.choice(np.flatnonzero(possibleFill <= 1.1 * np.min(possibleFill)), 1)[0]
 
-            output[x,y] = image_windows[index][image_windows.shape[1]/2]
+            output[x,y] = image_windows[index][window_size * window_size / 2]
 
             if isColor:
                 color_output[x,y,0] = color_image[index / color_image.shape[0], index % color_image.shape[0], 0]
@@ -143,41 +161,52 @@ def synthesize(input_image, output_size, window_size, epsilon = 0.1,
     else:
         return output
 
-def time_this(threads):
-    color_image = plt.imread('images/scale_template.gif')
-    end = 49
 
-    try:
-        color_image = color_image[:end,:end,:]
-    except:
-        color_image = color_image[:end,:end]
+def time_this(threads, square_size, window_size):
+    color_image = plt.imread('images/asphalt_template.gif')
+
+    color_image = process_image(color_image)
 
     with Timer() as t:
-        new_image = synthesize(color_image, 89, 17, verbose = False, num_threads=threads)
+        new_image = synthesize(color_image, square_size, window_size, verbose = True, num_threads=threads, parallel_2=False)
     print t.interval
     return t.interval
 
-    # plt.subplot(1,2,1, aspect='equal')
-    # plt.imshow(new_image.astype(np.uint8), cmap='Greys', interpolation='none')
-    # plt.title("Result")
-    #
-    # plt.subplot(1,2,2, aspect='equal')
-    # plt.title("Template")
-    # plt.imshow(color_image, interpolation='none', cmap='Greys')
-    # plt.show()
 
-times = [time_this(i) for i in range(1, 9)]
-plt.plot(range(1,9), [34.645647049,
-35.4726171494,
-32.721255064,
-33.8481218815,
-34.9053170681,
-33.9290750027,
-34.4410350323,
-33.2712552292,
-])
-plt.title("Running Time for Overall Algorithm")
-plt.xlabel("Number of Threads")
-plt.ylabel("Time")
-plt.show()
+def effros_leung(image_path, resulting_size, window_size, num_thread=4):
+    image = process_image(plt.imread(image_path))
+
+    new_image = synthesize(image, resulting_size, window_size, verbose = True, num_threads=num_thread, parallel_2=False)
+
+    plt.subplot(1,2,1)
+    plt.imshow(np.uint8(new_image))
+    plt.title("New Image")
+
+    plt.subplot(1,2,2)
+    plt.imshow(np.uint8(image))
+    plt.title("Old Image")
+
+    plt.show()
+
+# results = {'1': [], '2': [], '4': [], '8': []}
+#
+# for key in results:
+#     for i in range(127, 177, 10):
+#         results[key].append(time_this(int(key), i, 9))
+#
+# fig, ax = plt.subplots()
+# index = range(127, 177, 10)
+# ax.plot(index, results['1'], label='1 Thread')
+# ax.plot(index, results['2'], label='2 Threads')
+# ax.plot(index, results['4'], label='4 Threads')
+# ax.plot(index, results['8'], label='8 Threads')
+#
+# ax.legend(loc='upper left', shadow=True)
+#
+# plt.xlabel("Size of Resulting Image")
+# plt.ylabel("Time (sec)")
+# plt.show()
+
+
+
 
