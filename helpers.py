@@ -1,3 +1,11 @@
+''' 
+helpers.py 
+Antuan Tran and Evan Yao, CS 205 Fall 2015
+
+
+Python helper functions that are used in implementing the algorithm. 
+'''
+
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.ndimage.filters import gaussian_filter

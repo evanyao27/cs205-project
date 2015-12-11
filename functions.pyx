@@ -1,8 +1,13 @@
-from cython.parallel import parallel, prange
-from openmp cimport omp_lock_t, \
-    omp_init_lock, omp_destroy_lock, \
-    omp_set_lock, omp_unset_lock, omp_get_thread_num
-from libc.stdlib cimport malloc, free
+"""
+functions.pyx
+Antuan Tran and Evan Yao, CS 205 Fall 2015
+
+Parallel Cython functions that help us do the major computations in
+our algorithm. sum_square_error is for the slower of our 2 parallelization approaches
+while find_matches_parallel is for the faster approach.
+"""
+
+from cython.parallel import prange
 
 import numpy as np
 cimport numpy as np

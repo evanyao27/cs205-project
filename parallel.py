@@ -1,3 +1,15 @@
+""" 
+parallel.py 
+Antuan Tran and Evan Yao, CS 205 Fall 2015
+
+This is the parallel implementatin of our algorithm, which calls 
+upon functions in helpers.py and functions.pyx
+
+It uses Cython and is much faster than the serial Python-only code. 
+
+"""
+
+
 import sys
 sys.path.append('util')
 
@@ -84,6 +96,7 @@ def synthesize(input_image, output_size, window_size, epsilon = 0.1,
     :param delta: if we find a pixel whose window error less than delta, we will cease
      finding new candidates.
     :param verbose: whether we should print progress
+    :param parallel_2: whether or not to use the 2nd, more effective parallization technique!
     :return: a newly synthesized matrix
     """
 
@@ -188,6 +201,7 @@ def effros_leung(image_path, resulting_size, window_size, num_thread=4):
 
     plt.show()
 
+# The following code was used for timing!
 # results = {'1': [], '2': [], '4': [], '8': []}
 #
 # for key in results:

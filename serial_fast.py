@@ -1,3 +1,13 @@
+''' 
+serial_fast.py 
+Antuan Tran and Evan Yao, CS 205 Fall 2015 
+
+This is a serial python-only implementation of our algorithm. We used 
+it as a foundation for our parallel approach. This serial code is really slow! 
+
+'''
+
+
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.stats as st
